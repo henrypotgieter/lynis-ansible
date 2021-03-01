@@ -1,0 +1,38 @@
+---
+- hosts: activehosts
+  tasks:
+
+  - name: Copy source file to host.
+    copy: src=/ansible/static_files/lynis-latest.tar.gz dest=/tmp/lynis-latest.tar.gz mode=0644
+
+  - name: Extract source file inside tmp dir.
+    shell: |
+            cd /tmp
+            tar zxvf lynis-latest.tar.gz
+  
+  - name: Perform the audit.
+    shell: |
+            cd /tmp/lynis
+            ./lynis audit system | tee /tmp/{{ inventory_hostname }}-lynis-report.txt
+    register: audit_output
+  - debug: var=audit_output.stdout_lines
+
+  - name: Fetch report from host.
+    ansible.builtin.fetch:
+            src: /tmp/{{ inventory_hostname }}-lynis-report.txt
+            dest: /tmp/lynis-report-{{ ansible_date_time.date }}
+
+  - name: Remove lynis compressed file.
+    file:
+            path: /tmp/lynis-3.0.3.tar.gz
+            state: absent
+  
+  - name: Clean up and remove tmp files.
+    file:
+            path: /tmp/lynis/
+            state: absent
+  
+  - name: Clean up and remove report file.
+    file:
+            path: /tmp/{{ inventory_hostname }}-lynis-report.txt
+            state: absent
